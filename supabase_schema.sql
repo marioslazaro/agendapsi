@@ -28,14 +28,28 @@ ALTER TABLE patients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
 
 -- Políticas de Segurança (RLS Policies) para garantir que cada usuário veja apenas seus próprios dados
+DROP POLICY IF EXISTS "Users can only view their own patients" ON patients;
 CREATE POLICY "Users can only view their own patients" ON patients FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert their own patients" ON patients;
 CREATE POLICY "Users can insert their own patients" ON patients FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own patients" ON patients;
 CREATE POLICY "Users can update their own patients" ON patients FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete their own patients" ON patients;
 CREATE POLICY "Users can delete their own patients" ON patients FOR DELETE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can only view their own appointments" ON appointments;
 CREATE POLICY "Users can only view their own appointments" ON appointments FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert their own appointments" ON appointments;
 CREATE POLICY "Users can insert their own appointments" ON appointments FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own appointments" ON appointments;
 CREATE POLICY "Users can update their own appointments" ON appointments FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete their own appointments" ON appointments;
 CREATE POLICY "Users can delete their own appointments" ON appointments FOR DELETE USING (auth.uid() = user_id);
 
 -- Tabela de Assinaturas (Subscriptions)
@@ -49,6 +63,11 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own subscription" ON subscriptions;
 CREATE POLICY "Users can view their own subscription" ON subscriptions FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Only service role can manage subscriptions" ON subscriptions;
 CREATE POLICY "Only service role can manage subscriptions" ON subscriptions FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Only service role can update subscriptions" ON subscriptions;
 CREATE POLICY "Only service role can update subscriptions" ON subscriptions FOR UPDATE USING (true);
