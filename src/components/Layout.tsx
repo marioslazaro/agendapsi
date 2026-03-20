@@ -57,8 +57,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Main Area */}
       <div className="flex flex-col flex-1 overflow-hidden relative">
 
-      {/* Top Bar for secondary screens */}
-      {(!isPrimary && !isLogin) && (
+      {/* Top Bar for secondary screens (hide on login and subscription-expired) */}
+      {(!isPrimary && !isLogin && location.pathname !== '/subscription-expired') && (
         <header className="flex items-center p-4 bg-surface border-b pb-3 sticky top-0 z-20">
            <button 
              onClick={() => navigate(-1)} 

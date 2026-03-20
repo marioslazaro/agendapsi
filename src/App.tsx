@@ -37,8 +37,13 @@ function AnimatedRoutes() {
     return <Navigate to="/login" replace />;
   }
 
-  // Subscription Guard: Bloqueia se assinatura expirou ou não existe
-  if (user && (subscriptionStatus === 'expired' || subscriptionStatus === 'none') && location.pathname !== '/login' && location.pathname !== '/subscription-expired') {
+  // Redirect from login if already logged in
+  if (user && location.pathname === '/login') {
+    return <Navigate to="/" replace />;
+  }
+
+  // Subscription Guard: Bloqueia se assinatura expirou explicitamente
+  if (user && subscriptionStatus === 'expired' && location.pathname !== '/login' && location.pathname !== '/subscription-expired') {
     return <Navigate to="/subscription-expired" replace />;
   }
   
@@ -92,6 +97,9 @@ export default function App() {
         fetchData();
         checkSubscription();
       }
+    }).catch(err => {
+      console.error('Error getting session:', err);
+    }).finally(() => {
       setIsInitializing(false);
     });
 

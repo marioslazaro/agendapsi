@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 export default function Login() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -29,18 +31,36 @@ export default function Login() {
     setLoading(true);
     setErrorMsg('');
     
-    if (isSignUp) {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { name } }
-      });
-      if (error) setErrorMsg(error.message);
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setErrorMsg('Email ou senha inválidos.');
+    try {
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { name } }
+        });
+        if (error) {
+          setErrorMsg(error.message);
+        } else {
+          // No sign up, we usually wait for email verification or it auto-logs in
+          // For simplicity, if no error and session exists, navigate
+          const { data } = await supabase.auth.getSession();
+          if (data.session) navigate('/');
+        }
+      } else {
+        const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          setErrorMsg('Email ou senha inválidos.');
+        } else if (data.session) {
+          // Explicitly navigate on success
+          navigate('/');
+        }
+      }
+    } catch (err: any) {
+      setErrorMsg('Ocorreu um erro inesperado. Tente novamente.');
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -68,26 +88,32 @@ export default function Login() {
         <form onSubmit={handleEmailAuth} className="w-full flex flex-col gap-3 mb-6">
           {isSignUp && (
             <input 
+              name="name"
               type="text"
               placeholder="Nome Completo"
               value={name} onChange={e => setName(e.target.value)}
               className="w-full bg-white border border-slate-200 p-3.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-sm transition-all"
               required
+              autoComplete="name"
             />
           )}
           <input 
+            name="email"
             type="email"
             placeholder="E-mail"
             value={email} onChange={e => setEmail(e.target.value)}
             className="w-full bg-white border border-slate-200 p-3.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-sm transition-all"
             required
+            autoComplete="email"
           />
           <input 
+            name="password"
             type="password"
             placeholder="Senha"
             value={password} onChange={e => setPassword(e.target.value)}
             className="w-full bg-white border border-slate-200 p-3.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-sm transition-all"
             required
+            autoComplete={isSignUp ? "new-password" : "current-password"}
           />
           <button 
             type="submit"

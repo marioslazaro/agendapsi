@@ -61,39 +61,46 @@ export const useAppStore = create<AppState>()((set, get) => ({
     if (!user) return;
     set({ isLoading: true });
 
-    const [patientsRes, appointmentsRes] = await Promise.all([
-      supabase.from('patients').select('*'),
-      supabase.from('appointments').select('*')
-    ]);
+    try {
+      const [patientsRes, appointmentsRes] = await Promise.all([
+        supabase.from('patients').select('*'),
+        supabase.from('appointments').select('*')
+      ]);
 
-    if (patientsRes.data) {
-      set({ 
-        patients: patientsRes.data.map(p => ({
-          id: p.id,
-          name: p.name,
-          phone: p.phone,
-          frequency: p.frequency as Frequency,
-          observations: p.notes,
-          birthDate: p.birth_date,
-          createdAt: new Date(p.created_at).getTime()
-        }))
-      });
-    }
+      if (patientsRes.error) console.error('Error fetching patients:', patientsRes.error);
+      if (appointmentsRes.error) console.error('Error fetching appointments:', appointmentsRes.error);
 
-    if (appointmentsRes.data) {
-      set({
-        appointments: appointmentsRes.data.map(a => ({
-          id: a.id,
-          patientId: a.patient_id,
-          date: new Date(a.date).getTime(),
-          status: a.status as AppointmentStatus,
-          paymentStatus: a.payment_status as PaymentStatus,
-          value: Number(a.payment_value)
-        }))
-      });
+      if (patientsRes.data) {
+        set({ 
+          patients: patientsRes.data.map(p => ({
+            id: p.id,
+            name: p.name,
+            phone: p.phone,
+            frequency: p.frequency as Frequency,
+            observations: p.notes,
+            birthDate: p.birth_date,
+            createdAt: new Date(p.created_at).getTime()
+          }))
+        });
+      }
+
+      if (appointmentsRes.data) {
+        set({
+          appointments: appointmentsRes.data.map(a => ({
+            id: a.id,
+            patientId: a.patient_id,
+            date: new Date(a.date).getTime(),
+            status: a.status as AppointmentStatus,
+            paymentStatus: a.payment_status as PaymentStatus,
+            value: Number(a.payment_value)
+          }))
+        });
+      }
+    } catch (err) {
+      console.error('Unexpected error in fetchData:', err);
+    } finally {
+      set({ isLoading: false });
     }
-    
-    set({ isLoading: false });
   },
 
   addPatient: async (patientData) => {
@@ -206,24 +213,38 @@ export const useAppStore = create<AppState>()((set, get) => ({
       return;
     }
     
-    const { data, error } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
 
-    if (error || !data) {
+      if (error) {
+        if (error.code !== 'PGRST116') { // PGRST116 is "no rows returned" which is fine
+          console.error('Supabase error checking subscription:', error);
+        }
+        set({ subscriptionStatus: 'none' });
+        return;
+      }
+
+      if (!data) {
+        set({ subscriptionStatus: 'none' });
+        return;
+      }
+
+      const now = new Date();
+      const expiresAt = new Date(data.expires_at);
+
+      // Allow both 'active' and 'trial' statuses if they haven't expired
+      if ((data.status === 'active' || data.status === 'trial') && expiresAt > now) {
+        set({ subscriptionStatus: 'active' });
+      } else {
+        set({ subscriptionStatus: 'expired' });
+      }
+    } catch (err) {
+      console.error('Unexpected error in checkSubscription:', err);
       set({ subscriptionStatus: 'none' });
-      return;
-    }
-
-    const now = new Date();
-    const expiresAt = new Date(data.expires_at);
-
-    if (data.status === 'active' && expiresAt > now) {
-      set({ subscriptionStatus: 'active' });
-    } else {
-      set({ subscriptionStatus: 'expired' });
     }
   },
 }));
