@@ -3,6 +3,7 @@ import { useAppStore } from '../store';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { format, differenceInYears, isSameWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { dailyQuotes } from '../utils/quotes';
 
 export default function Dashboard() {
   const { isRefreshing } = usePullToRefresh(async () => {
@@ -26,10 +27,13 @@ export default function Dashboard() {
 
   const getGreeting = () => {
     const hour = today.getHours();
-    if (hour < 12) return 'Bom dia';
-    if (hour < 18) return 'Boa tarde';
-    return 'Boa noite';
+    if (hour >= 5 && hour < 12) return 'Bom dia';
+    if (hour >= 12 && hour < 18) return 'Boa tarde';
+    return 'Boa noite'; // 18:00 - 4:59
   };
+
+  const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
+  const todayQuote = dailyQuotes[dayOfYear % dailyQuotes.length];
 
   const totalToday = todayAppointments.length;
   const completedToday = todayAppointments.filter(a => a.status === 'Completed').length;
@@ -62,8 +66,8 @@ export default function Dashboard() {
       <section className="bg-primary-50 rounded-2xl p-5 border border-primary-100 shadow-sm">
         <h3 className="font-semibold text-primary-700 mb-2">Mensagem do Dia</h3>
         <p className="text-primary-600/90 text-sm italic tracking-wide leading-relaxed">
-          "Conheça todas as teorias, domine todas as técnicas, mas ao tocar uma alma humana, seja apenas outra alma humana."
-          <br/><span className="mt-2 block font-medium">— Carl Jung</span>
+          "{todayQuote.text}"
+          <br/><span className="mt-2 block font-medium">— {todayQuote.author}</span>
         </p>
       </section>
 
