@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { supabase } from './lib/supabase';
 import { AnimatePresence, motion } from 'framer-motion';
 
 import { Layout } from './components/Layout';
@@ -11,6 +12,7 @@ import AppointmentForm from './pages/AppointmentForm';
 import Finances from './pages/Finances';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
+import SubscriptionExpired from './pages/SubscriptionExpired';
 import { useAppStore } from './store';
 
 const pageVariants = {
@@ -28,10 +30,16 @@ const pageTransition = {
 function AnimatedRoutes() {
   const location = useLocation();
   const user = useAppStore(state => state.user);
+  const subscriptionStatus = useAppStore(state => state.subscriptionStatus);
   
   // Auth Guard: Redireciona para login se nao logado
   if (!user && location.pathname !== '/login') {
     return <Navigate to="/login" replace />;
+  }
+
+  // Subscription Guard: Bloqueia se assinatura expirou ou não existe
+  if (user && (subscriptionStatus === 'expired' || subscriptionStatus === 'none') && location.pathname !== '/login' && location.pathname !== '/subscription-expired') {
+    return <Navigate to="/subscription-expired" replace />;
   }
   
   // We use AnimatePresence to animate components on unmount
@@ -46,6 +54,7 @@ function AnimatedRoutes() {
         <Route path="/finances" element={<MotionPage><Finances /></MotionPage>} />
         <Route path="/settings" element={<MotionPage><Settings /></MotionPage>} />
         <Route path="/login" element={<MotionPage><Login /></MotionPage>} />
+        <Route path="/subscription-expired" element={<MotionPage><SubscriptionExpired /></MotionPage>} />
       </Routes>
     </AnimatePresence>
   );
@@ -67,6 +76,50 @@ function MotionPage({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const [isInitializing, setIsInitializing] = useState(true);
+  const setUser = useAppStore(state => state.setUser);
+  const fetchData = useAppStore(state => state.fetchData);
+  const checkSubscription = useAppStore(state => state.checkSubscription);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          name: session.user.user_metadata?.name || 'Psicólogo(a)',
+          email: session.user.email || '',
+        });
+        fetchData();
+        checkSubscription();
+      }
+      setIsInitializing(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          name: session.user.user_metadata?.name || 'Psicólogo(a)',
+          email: session.user.email || '',
+        });
+        fetchData();
+        checkSubscription();
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [setUser, fetchData, checkSubscription]);
+
+  if (isInitializing) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
+        <div className="w-10 h-10 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
   return (
     <BrowserRouter>
       <Layout>

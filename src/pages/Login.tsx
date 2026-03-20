@@ -1,42 +1,46 @@
 import { useState } from 'react';
-import { useAppStore } from '../store';
-import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 
 export default function Login() {
-  const login = useAppStore(state => state.login);
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     setLoading(true);
-    // Simula o tempo de rede do OAuth do Google
-    setTimeout(() => {
-      login({ 
-        name: 'Carolina Mendes', 
-        email: 'carolina@clinicpsico.com.br',
-        avatarUrl: `https://ui-avatars.com/api/?name=Carolina+Mendes&background=0D8ABC&color=fff&rounded=true`
-      });
-      navigate('/');
-    }, 1200);
+    setErrorMsg('');
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin }
+    });
+    if (error) {
+      setErrorMsg(error.message);
+      setLoading(false);
+    }
   };
 
-  const handleEmailAuth = (e: React.FormEvent) => {
+  const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password || (isSignUp && !name)) return;
     setLoading(true);
-    setTimeout(() => {
-      login({ 
-        name: isSignUp ? name : 'Doutor(a)', 
-        email: email,
-        avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(isSignUp ? name : 'Doc')}&background=0D8ABC&color=fff&rounded=true`
+    setErrorMsg('');
+    
+    if (isSignUp) {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name } }
       });
-      navigate('/');
-    }, 1000);
+      if (error) setErrorMsg(error.message);
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) setErrorMsg('Email ou senha inválidos.');
+    }
+    setLoading(false);
   };
 
   return (
@@ -55,6 +59,12 @@ export default function Login() {
         <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight text-center mb-1">AgendaPsi</h1>
         <p className="text-slate-500 font-medium text-center mb-6 text-sm">Gestão Clínica Inteligente.</p>
         
+        {errorMsg && (
+          <div className="w-full bg-red-50 border border-red-200 text-red-600 text-sm font-medium p-3 rounded-xl mb-4 text-center">
+            {errorMsg}
+          </div>
+        )}
+
         <form onSubmit={handleEmailAuth} className="w-full flex flex-col gap-3 mb-6">
           {isSignUp && (
             <input 
